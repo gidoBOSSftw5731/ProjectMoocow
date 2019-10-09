@@ -1,26 +1,42 @@
 package main
 
 import (
-	"flag"
+	"database/sql"
 	"fmt"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/gidoBOSSftw5731/log"
+	"github.com/jinzhu/configor"
 )
 
+var config = struct {
+	APPName string `default:"PinnerBoi"`
+	Author  string `default:"gidoBOSSftw5731#6422"`
+
+	prefix string `default:"📌 "`
+	token  string `required:"true"`
+
+	DB struct {
+		User     string `default:"pinnerboi"`
+		Password string `required:"true" env:"DBPassword"`
+		Port     string `default:"3306"`
+	}
+}{}
+
 var (
-	botID         string
-	discordToken  = flag.String("token", "", "Discord bot secret")
-	commandPrefix = "📌 "
-	author        = ""
+	botID string
+	//discordToken  = flag.String("token", "", "Discord bot secret")
+	//commandPrefix = "📌 "
+	//author        = ""
 )
 
 func main() {
-	flag.Parse()
+	configor.Load(&config, "config.yml")
+
 	log.SetCallDepth(4)
 
-	discord, err := discordgo.New("Bot " + *discordToken)
+	discord, err := discordgo.New("Bot " + config.token)
 	errCheck("error creating discord session", err)
 	user, err := discord.User("@me")
 	errCheck("error retrieving account", err)
@@ -50,12 +66,12 @@ func errCheck(msg string, err error) {
 }
 
 func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate) {
-	if message.Content[:len(commandPrefix)] != commandPrefix ||
-		len(strings.Split(message.Content, commandPrefix)) < 2 {
+	if message.Content[:len(config.prefix)] != config.prefix ||
+		len(strings.Split(message.Content, config.prefix)) < 2 {
 		return
 	}
 
-	command := strings.Split(message.Content, commandPrefix)[1]
+	command := strings.Split(message.Content, config.prefix)[1]
 	commandContents := strings.Split(message.Content, " ") // 0 = !command, 2 = first arg, etc
 
 	switch strings.Split(command, " ")[0] {
@@ -72,6 +88,22 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		}
 		//discord.ChannelMessages()
 		//discord.ChannelMessageSend(message.ChannelID, message.Reactions[1])
+
+	case "pin":
+
 	}
 
+}
+
+func startSQL() *sql.DB {
+	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(127.0.0.1:%s)/pinnerboibot",
+		config.DB.User, config.DB.Password, config.DB.Port))
+	if err != nil {
+		log.Error("Oh noez, could not connect to database")
+		log.Errorf("Error in SQL! %v", err)
+	}
+	log.Debug("Oi, mysql did thing")
+	//defer db.Close()
+
+	return db
 }

@@ -21,6 +21,7 @@ var config = struct {
 		User     string `default:"pinnerboi"`
 		Password string `required:"true" env:"DBPassword"`
 		Port     string `default:"3306"`
+		IP	 string	`default:"127.0.0.1"`
 	}
 }{}
 
@@ -96,8 +97,8 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 }
 
 func startSQL() *sql.DB {
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(127.0.0.1:%s)/pinnerboibot",
-		config.DB.User, config.DB.Password, config.DB.Port))
+	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/pinnerboibot",
+		config.DB.User, config.DB.Password, config.DB.IP, config.DB.Port))
 	if err != nil {
 		log.Error("Oh noez, could not connect to database")
 		log.Errorf("Error in SQL! %v", err)

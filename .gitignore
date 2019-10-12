@@ -1,2 +1,3 @@
-config.yml
-config.yml
+*.yml
+
+*config.yml*

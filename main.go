@@ -26,6 +26,10 @@ var config = struct {
 	}
 }{}
 
+const (
+	pinReaction string = "📌"
+)
+
 var (
 	botID string
 	//discordToken  = flag.String("token", "", "Discord bot secret")
@@ -70,10 +74,15 @@ func errCheck(msg string, err error) {
 }
 
 func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate) {
+	if message.Content == "" || len(message.Content) < len(config.Prefix) {
+		return
+	}
 	if message.Content[:len(config.Prefix)] != config.Prefix ||
 		len(strings.Split(message.Content, config.Prefix)) < 2 {
 		return
 	}
+
+	log.Debugln("prefix found")
 
 	command := strings.Split(message.Content, config.Prefix)[1]
 	commandContents := strings.Split(message.Content, " ") // 0 = !command, 2 = first arg, etc
@@ -104,41 +113,75 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 			return
 		}
 
-		for messageIndex := 0; messageIndex < len(last100); messageIndex++ {
-			message := *last100[messageIndex]
-			reaction := message.Reactions
-			for reactionIndex := 0; reactionIndex < len(reaction); reactionIndex++ {
-				if reaction[reactionIndex].Emoji.Name != "📌" {
-					continue
-				}
-				//At this point, we know the command was "pinned"
+		msg, err := discord.ChannelMessage(message.ChannelID, message.ID)
+		if err != nil {
+			log.Errorln(err)
+			return
+		}
 
-				sqlServerID := ""
-				err = db.QueryRow("SELECT * FROM pinnedmessages WHERE channelid=? AND messageid=?",
-					message.ChannelID, message.ID).Scan(&sqlServerID)
+		err = checkAndPin(last100, db, msg, message.GuildID)
+		if err != nil {
+			log.Errorln(err)
+			return
+		}
 
-				switch {
-				case err == sql.ErrNoRows:
-					log.Debug("New pin, adding..")
-					_, err := db.Exec("INSERT INTO pinnedmessages VALUES(?, ?, ?)",
-						message.GuildID, message.ChannelID, message.ID)
-					if err != nil {
-						log.Error(err)
-						return
-					}
-					log.Debug("Added pin info to table")
-				case err != nil:
-					log.Error(err)
-					return
-				default:
-					continue
-				}
+	case "updatepin":
+		reactedMsg, err := discord.ChannelMessage(message.ChannelID, commandContents[2])
+		if err != nil {
+			return
+		}
 
-			}
+		last100, err := discord.ChannelMessages(reactedMsg.ChannelID, 100, "", "", reactedMsg.ID)
+		if err != nil {
+			log.Errorln(err)
+			return
+		}
+
+		err = checkAndPin(last100, db, reactedMsg, message.GuildID)
+		if err != nil {
+			log.Errorln(err)
+			return
 		}
 
 	}
 
+}
+
+func checkAndPin(last100 []*discordgo.Message, db *sql.DB, message *discordgo.Message, serverID string) error {
+	for messageIndex := 0; messageIndex < len(last100); messageIndex++ {
+		msg := *last100[messageIndex]
+		reaction := msg.Reactions
+		for reactionIndex := 0; reactionIndex < len(reaction); reactionIndex++ {
+			if reaction[reactionIndex].Emoji.Name != pinReaction {
+				continue
+			}
+			//At this point, we know the command was "pinned"
+
+			var tmpptr string //throwaway var
+
+			err := db.QueryRow("SELECT * FROM pinnedmessages WHERE channelid=? AND messageid=?",
+				serverID, msg.ID).Scan(&tmpptr, &tmpptr, &tmpptr)
+
+			switch {
+			case err == sql.ErrNoRows:
+				log.Debug("New pin, adding..")
+				_, err := db.Exec("INSERT INTO pinnedmessages VALUES(?, ?, ?)",
+					serverID, msg.ChannelID, msg.ID)
+				if err != nil {
+					log.Error(err)
+					return err
+				}
+				log.Debug("Added pin info to table")
+			case err != nil:
+				log.Error(err)
+				return err
+			default:
+				continue
+			}
+
+		}
+	}
+	return nil
 }
 
 func startSQL() *sql.DB {

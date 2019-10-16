@@ -7,6 +7,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/gidoBOSSftw5731/log"
+	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/configor"
 )
 
@@ -14,14 +15,14 @@ var config = struct {
 	APPName string `default:"PinnerBoi"`
 	Author  string `default:"gidoBOSSftw5731#6422"`
 
-	prefix string `default:"📌 "`
-	token  string `required:"true"`
+	Prefix string `default:"📌 "`
+	Token  string `required:"true"`
 
 	DB struct {
 		User     string `default:"pinnerboi"`
 		Password string `required:"true" env:"DBPassword"`
 		Port     string `default:"3306"`
-		IP	 string	`default:"127.0.0.1"`
+		IP       string `default:"127.0.0.1"`
 	}
 }{}
 
@@ -35,9 +36,11 @@ var (
 func main() {
 	configor.Load(&config, "config.yml")
 
+	//println(config.Token)
+
 	log.SetCallDepth(4)
 
-	discord, err := discordgo.New("Bot " + config.token)
+	discord, err := discordgo.New("Bot " + config.Token)
 	errCheck("error creating discord session", err)
 	user, err := discord.User("@me")
 	errCheck("error retrieving account", err)
@@ -67,16 +70,19 @@ func errCheck(msg string, err error) {
 }
 
 func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate) {
-	if message.Content[:len(config.prefix)] != config.prefix ||
-		len(strings.Split(message.Content, config.prefix)) < 2 {
+	if message.Content[:len(config.Prefix)] != config.Prefix ||
+		len(strings.Split(message.Content, config.Prefix)) < 2 {
 		return
 	}
 
-	command := strings.Split(message.Content, config.prefix)[1]
+	command := strings.Split(message.Content, config.Prefix)[1]
 	commandContents := strings.Split(message.Content, " ") // 0 = !command, 2 = first arg, etc
 
-	switch strings.Split(command, " ")[0] {
+	db := startSQL()
+
+	switch strings.Split(command, " ")[1] {
 	case "returnreacts":
+
 		reactedMsg, err := discord.ChannelMessage(message.ChannelID, commandContents[2])
 		if err != nil {
 			return
@@ -85,12 +91,51 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		fmt.Println("Reactions:")
 
 		for _, reaction := range reactedMsg.Reactions {
-			fmt.Println(reaction)
+			fmt.Println(reaction.Emoji.Name)
 		}
-		//discord.ChannelMessages()
+
 		//discord.ChannelMessageSend(message.ChannelID, message.Reactions[1])
 
-	case "pin":
+	case "chkpin":
+
+		last100, err := discord.ChannelMessages(message.ChannelID, 100, message.ID, "", "")
+		if err != nil {
+			log.Errorln(err)
+			return
+		}
+
+		for messageIndex := 0; messageIndex < len(last100); messageIndex++ {
+			message := *last100[messageIndex]
+			reaction := message.Reactions
+			for reactionIndex := 0; reactionIndex < len(reaction); reactionIndex++ {
+				if reaction[reactionIndex].Emoji.Name != "📌" {
+					continue
+				}
+				//At this point, we know the command was "pinned"
+
+				sqlServerID := ""
+				err = db.QueryRow("SELECT * FROM pinnedmessages WHERE channelid=? AND messageid=?",
+					message.ChannelID, message.ID).Scan(&sqlServerID)
+
+				switch {
+				case err == sql.ErrNoRows:
+					log.Debug("New pin, adding..")
+					_, err := db.Exec("INSERT INTO pinnedmessages VALUES(?, ?, ?)",
+						message.GuildID, message.ChannelID, message.ID)
+					if err != nil {
+						log.Error(err)
+						return
+					}
+					log.Debug("Added pin info to table")
+				case err != nil:
+					log.Error(err)
+					return
+				default:
+					continue
+				}
+
+			}
+		}
 
 	}
 

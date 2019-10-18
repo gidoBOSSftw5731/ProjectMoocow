@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -28,7 +29,16 @@ var config = struct {
 
 const (
 	pinReaction string = "📌"
+	precision   int    = 5
 )
+
+//var allChannelIDs = map[string]string{}
+var allChannelIDs []channelInfo
+
+type channelInfo struct {
+	ChannelID string
+	GuildID   string
+}
 
 var (
 	botID string
@@ -64,6 +74,8 @@ func main() {
 	errCheck("Error opening connection to Discord", err)
 	defer discord.Close()
 
+	go collectAllChannelIDs(discord)
+
 	<-make(chan struct{})
 }
 
@@ -71,6 +83,44 @@ func errCheck(msg string, err error) {
 	if err != nil {
 		log.Fatalf("%s: %+v", msg, err)
 	}
+}
+
+func collectAllChannelIDs(s *discordgo.Session) {
+	for _, guild := range s.State.Guilds {
+		channels, err := s.GuildChannels(guild.ID)
+		if err != nil {
+			log.Errorln(err)
+			continue
+		}
+		for _, c := range channels {
+			// Check if channel is a guild text channel and not a voice or DM channel
+			if c.Type != discordgo.ChannelTypeGuildText {
+				continue
+			}
+
+			//allChannelIDs = append(allChannelIDs, c.ID)
+			//allChannelIDs[c.ID] = c.GuildID
+			allChannelIDs = append(allChannelIDs, channelInfo{ChannelID: c.ID, GuildID: c.GuildID})
+		}
+	}
+
+	//log.Tracef("All channel IDs: \n%v", allChannelIDs)
+	autoChecker()
+
+}
+
+func autoChecker() {
+
+	iterations := make(map[channelInfo]int)
+	for _, channel := range allChannelIDs {
+		id, err := strconv.Atoi(channel.ChannelID)
+		if err != nil {
+			log.Errorln(err)
+			continue
+		}
+		iterations[channel] = id % precision
+	}
+	log.Traceln(iterations)
 }
 
 func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate) {
@@ -85,9 +135,14 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	log.Debugln("prefix found")
 
 	command := strings.Split(message.Content, config.Prefix)[1]
-	commandContents := strings.Split(message.Content, " ") // 0 = !command, 2 = first arg, etc
+	commandContents := strings.Split(message.Content, " ") // 0 = !, 1 = command, 2 = first arg, etc
 
 	db := startSQL()
+
+	if len(command) < 2 {
+		log.Errorln("No command sent")
+		return
+	}
 
 	switch strings.Split(command, " ")[1] {
 	case "returnreacts":

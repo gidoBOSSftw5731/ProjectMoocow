@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/gidoBOSSftw5731/log"
@@ -127,15 +128,27 @@ func autoChecker(s *discordgo.Session) {
 	db := startSQL()
 	var wg sync.WaitGroup
 
-	go func() {
+	for {
+		now := time.Now().Unix() % int64(precision)
+		var current []channelInfo
+
 		for channel := range iterations {
-
-			wg.Add(1)
-			check(s, &channel, db, &wg)
+			if int64(iterations[channel]) == now {
+				append(current, channel)
+			}
 		}
-	}()
 
-	wg.Wait()
+		go func() {
+			for _, channel := range current {
+
+				wg.Add(1)
+				check(s, &channel, db, &wg)
+			}
+		}()
+
+		wg.Wait()
+	}
+
 }
 
 func check(s *discordgo.Session, channel *channelInfo, db *sql.DB, wg *sync.WaitGroup) {

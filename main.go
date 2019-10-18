@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/gidoBOSSftw5731/log"
@@ -105,11 +106,11 @@ func collectAllChannelIDs(s *discordgo.Session) {
 	}
 
 	//log.Tracef("All channel IDs: \n%v", allChannelIDs)
-	autoChecker()
+	autoChecker(s)
 
 }
 
-func autoChecker() {
+func autoChecker(s *discordgo.Session) {
 
 	iterations := make(map[channelInfo]int)
 	for _, channel := range allChannelIDs {
@@ -120,7 +121,31 @@ func autoChecker() {
 		}
 		iterations[channel] = id % precision
 	}
-	log.Traceln(iterations)
+
+	//log.Traceln(iterations)
+
+	db := startSQL()
+	var wg sync.WaitGroup
+
+	go func() {
+		for channel := range iterations {
+
+			wg.Add(1)
+			check(s, &channel, db, &wg)
+		}
+	}()
+
+	wg.Wait()
+}
+
+func check(s *discordgo.Session, channel *channelInfo, db *sql.DB, wg *sync.WaitGroup) {
+	last25, err := s.ChannelMessages(channel.ChannelID, 25, "", "", "")
+	if err != nil {
+		log.Errorln(err)
+		return
+	}
+	checkAndPin(last25, db, channel.GuildID)
+	wg.Done()
 }
 
 func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate) {
@@ -168,13 +193,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 			return
 		}
 
-		msg, err := discord.ChannelMessage(message.ChannelID, message.ID)
-		if err != nil {
-			log.Errorln(err)
-			return
-		}
-
-		err = checkAndPin(last100, db, msg, message.GuildID)
+		err = checkAndPin(last100, db, message.GuildID)
 		if err != nil {
 			log.Errorln(err)
 			return
@@ -192,7 +211,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 			return
 		}
 
-		err = checkAndPin(last100, db, reactedMsg, message.GuildID)
+		err = checkAndPin(last100, db, message.GuildID)
 		if err != nil {
 			log.Errorln(err)
 			return
@@ -202,7 +221,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 
 }
 
-func checkAndPin(last100 []*discordgo.Message, db *sql.DB, message *discordgo.Message, serverID string) error {
+func checkAndPin(last100 []*discordgo.Message, db *sql.DB, serverID string) error {
 	for messageIndex := 0; messageIndex < len(last100); messageIndex++ {
 		msg := *last100[messageIndex]
 		reaction := msg.Reactions

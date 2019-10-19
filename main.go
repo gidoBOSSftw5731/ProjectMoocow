@@ -126,7 +126,6 @@ func autoChecker(s *discordgo.Session) {
 	//log.Traceln(iterations)
 
 	db := startSQL()
-	var wg sync.WaitGroup
 
 	for {
 		now := time.Now().Unix() % int64(precision)
@@ -134,9 +133,12 @@ func autoChecker(s *discordgo.Session) {
 
 		for channel := range iterations {
 			if int64(iterations[channel]) == now {
-				append(current, channel)
+				current = append(current, channel)
 			}
 		}
+
+		var wg sync.WaitGroup
+		wg.Add(1)
 
 		go func() {
 			for _, channel := range current {
@@ -146,7 +148,9 @@ func autoChecker(s *discordgo.Session) {
 			}
 		}()
 
-		wg.Wait()
+		//wg.Done()
+		//wg.Wait()
+		time.Sleep(1 * time.Second)
 	}
 
 }
@@ -158,7 +162,7 @@ func check(s *discordgo.Session, channel *channelInfo, db *sql.DB, wg *sync.Wait
 		return
 	}
 	checkAndPin(last25, db, channel.GuildID)
-	wg.Done()
+	//wg.Done()
 }
 
 func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate) {
@@ -198,6 +202,9 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 
 		//discord.ChannelMessageSend(message.ChannelID, message.Reactions[1])
 
+	// in-joke, not functional
+	case "alcegf":
+		discord.ChannelMessageSend(message.ChannelID, "HE NEEDS YOU <@613131233852915733>")
 	case "chkpin":
 
 		last100, err := discord.ChannelMessages(message.ChannelID, 100, message.ID, "", "")
@@ -247,7 +254,7 @@ func checkAndPin(last100 []*discordgo.Message, db *sql.DB, serverID string) erro
 			var tmpptr string //throwaway var
 
 			err := db.QueryRow("SELECT * FROM pinnedmessages WHERE channelid=? AND messageid=?",
-				serverID, msg.ID).Scan(&tmpptr, &tmpptr, &tmpptr)
+				msg.ChannelID, msg.ID).Scan(&tmpptr, &tmpptr, &tmpptr)
 
 			switch {
 			case err == sql.ErrNoRows:

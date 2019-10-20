@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"html/template"
+	"os"
 	"strconv"
 	"strings"
 	"sync"
@@ -189,6 +190,20 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	}
 
 	switch strings.Split(command, " ")[1] {
+	case "testweb":
+		webpage, err := Webpage(message.ChannelID, message.GuildID, discord)
+		if err != nil {
+			log.Errorln(err)
+			return
+		}
+
+		println(webpage)
+		_, err = discord.ChannelMessageSend(message.ChannelID, webpage)
+		if err != nil {
+			log.Errorln(err)
+			return
+		}
+
 	case "returnreacts":
 
 		reactedMsg, err := discord.ChannelMessage(message.ChannelID, commandContents[2])
@@ -304,14 +319,14 @@ func messageTemplater(messages []*discordgo.Message) (string, error) {
 
 	for _, message := range messages {
 		t := template.New("message")
-		t, err := t.ParseFiles("temlates/messagetmpl.html")
+		t, err := t.ParseFiles("templates/messagetmpl.html")
 		if err != nil {
 			return output, err
 		}
 
 		var buf bytes.Buffer
 
-		t.Execute(&buf, message)
+		t.Execute(os.Stdout, message)
 
 		output += fmt.Sprintln(buf)
 		output += "\n"

@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"fmt"
+	"html/template"
 	"strconv"
 	"strings"
 	"sync"
@@ -239,6 +241,83 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 
 	}
 
+}
+
+func pinsWithInfo(serverID, channelID string, discord *discordgo.Session) ([]*discordgo.Message, error) {
+	var messages []*discordgo.Message
+
+	db := startSQL()
+
+	rows, err := db.Query("SELECT messageid FROM pinnedmessages WHERE serverid=? AND channelid=?", serverID, channelID)
+	if err != nil {
+		return nil, err
+	}
+
+	defer rows.Close()
+
+	for rows.Next() {
+		var messageid string
+		rows.Scan(&messageid)
+		message, err := discord.ChannelMessage(channelID, messageid)
+		if err != nil {
+			return nil, err
+		}
+		messages = append(messages, message)
+	}
+	if rows.Err() != nil {
+		return nil, err
+	}
+
+	return messages, err
+}
+
+//Webpage is a function that returns an HTML file as a string to be sent to a user.
+func Webpage(channelID, serverID string, discord *discordgo.Session) (string, error) {
+	var output string
+
+	t := template.New("pins")
+	t, err := t.ParseFiles("templates/template.html")
+	if err != nil {
+		return output, err
+	}
+
+	messages, err := pinsWithInfo(serverID, channelID, discord)
+	if err != nil {
+		return output, err
+	}
+
+	messagetmpl, err := messageTemplater(messages)
+	if err != nil {
+		return output, err
+	}
+
+	var buf bytes.Buffer
+
+	t.Execute(&buf, messagetmpl)
+	output = fmt.Sprintln(buf)
+
+	return output, err
+}
+
+func messageTemplater(messages []*discordgo.Message) (string, error) {
+	var output string
+
+	for _, message := range messages {
+		t := template.New("message")
+		t, err := t.ParseFiles("temlates/messagetmpl.html")
+		if err != nil {
+			return output, err
+		}
+
+		var buf bytes.Buffer
+
+		t.Execute(&buf, message)
+
+		output += fmt.Sprintln(buf)
+		output += "\n"
+	}
+
+	return output, nil
 }
 
 func checkAndPin(last100 []*discordgo.Message, db *sql.DB, serverID string) error {

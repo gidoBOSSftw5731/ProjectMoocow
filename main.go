@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"html/template"
-	"os"
+	"io/ioutil"
 	"strconv"
 	"strings"
 	"sync"
@@ -39,6 +39,16 @@ const (
 
 //var allChannelIDs = map[string]string{}
 var allChannelIDs []channelInfo
+
+//MsgStruct is a struct to hold all essential information for the template
+type MsgStruct struct {
+	Author  string
+	Content string
+	GID     string
+	CID     string
+	ID      string
+	Time    string
+}
 
 type channelInfo struct {
 	ChannelID string
@@ -190,20 +200,6 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	}
 
 	switch strings.Split(command, " ")[1] {
-	case "testweb":
-		webpage, err := Webpage(message.ChannelID, message.GuildID, discord)
-		if err != nil {
-			log.Errorln(err)
-			return
-		}
-
-		println(webpage)
-		_, err = discord.ChannelMessageSend(message.ChannelID, webpage)
-		if err != nil {
-			log.Errorln(err)
-			return
-		}
-
 	case "returnreacts":
 
 		reactedMsg, err := discord.ChannelMessage(message.ChannelID, commandContents[2])
@@ -283,15 +279,20 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session) ([]*di
 		return nil, err
 	}
 
-	return messages, err
+	return messages, nil
 }
 
 //Webpage is a function that returns an HTML file as a string to be sent to a user.
 func Webpage(channelID, serverID string, discord *discordgo.Session) (string, error) {
 	var output string
 
+	file, err := ioutil.ReadFile("templates/template.html")
+	if err != nil {
+		return "", err
+	}
+
 	t := template.New("pins")
-	t, err := t.ParseFiles("templates/template.html")
+	t, err = t.Parse(string(file))
 	if err != nil {
 		return output, err
 	}
@@ -311,28 +312,49 @@ func Webpage(channelID, serverID string, discord *discordgo.Session) (string, er
 	t.Execute(&buf, messagetmpl)
 	output = fmt.Sprintln(buf)
 
-	return output, err
+	return output, nil
 }
 
 func messageTemplater(messages []*discordgo.Message) (string, error) {
 	var output string
 
-	for _, message := range messages {
+	for _, Message := range messages {
+		msg := msgToStruct(Message)
+
+		file, err := ioutil.ReadFile("templates/messagetmpl.html")
+		if err != nil {
+			return "", err
+		}
+
 		t := template.New("message")
-		t, err := t.ParseFiles("templates/messagetmpl.html")
+		t, err = t.Parse(string(file))
 		if err != nil {
 			return output, err
 		}
 
 		var buf bytes.Buffer
 
-		t.Execute(os.Stdout, message)
+		err = t.Execute(&buf, msg)
+		if err != nil {
+			return output, err
+		}
 
+		//log.Traceln(buf)
 		output += fmt.Sprintln(buf)
 		output += "\n"
 	}
 
 	return output, nil
+}
+
+func msgToStruct(message *discordgo.Message) MsgStruct {
+	return MsgStruct{
+		message.Author.Username,
+		message.Content,
+		message.GuildID,
+		message.ChannelID,
+		message.ID,
+		string(message.Timestamp)}
 }
 
 func checkAndPin(last100 []*discordgo.Message, db *sql.DB, serverID string) error {

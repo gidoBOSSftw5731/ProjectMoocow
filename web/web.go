@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/ioutil"
+	"path"
 
 	"../tools"
 	"github.com/bwmarrin/discordgo"
@@ -28,11 +29,16 @@ type SQLInfo struct {
 	Port     string
 }
 
+//MsgTmpl is a struct that can hold a templated set of messages
+type MsgTmpl struct {
+	Messages string
+}
+
 //Webpage is a function that returns an HTML file as a string to be sent to a user.
-func Webpage(channelID, serverID string, discord *discordgo.Session, sql SQLInfo) (string, error) {
+func Webpage(channelID, serverID string, discord *discordgo.Session, sql SQLInfo, tmplPath string) (string, error) {
 	var output string
 
-	file, err := ioutil.ReadFile("templates/template.html")
+	file, err := ioutil.ReadFile(path.Join(tmplPath, "template.html"))
 	if err != nil {
 		return "", err
 	}
@@ -48,26 +54,29 @@ func Webpage(channelID, serverID string, discord *discordgo.Session, sql SQLInfo
 		return output, err
 	}
 
-	messagetmpl, err := messageTemplater(messages)
+	messagetmpl, err := messageTemplater(messages, tmplPath)
 	if err != nil {
 		return output, err
 	}
 
+	Msgs := MsgTmpl{
+		Messages: messagetmpl}
+
 	var buf bytes.Buffer
 
-	t.Execute(&buf, messagetmpl)
-	output = fmt.Sprintln(buf)
+	t.Execute(&buf, Msgs)
+	output = buf.String()
 
 	return output, nil
 }
 
-func messageTemplater(messages []*discordgo.Message) (string, error) {
+func messageTemplater(messages []*discordgo.Message, tmplPath string) (string, error) {
 	var output string
 
 	for _, Message := range messages {
 		msg := msgToStruct(Message)
 
-		file, err := ioutil.ReadFile("templates/messagetmpl.html")
+		file, err := ioutil.ReadFile(path.Join(tmplPath, "messagetmpl.html"))
 		if err != nil {
 			return "", err
 		}

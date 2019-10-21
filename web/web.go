@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"io/ioutil"
 
+	"../tools"
 	"github.com/bwmarrin/discordgo"
 )
 
@@ -19,8 +20,16 @@ type MsgStruct struct {
 	Time    string
 }
 
+//SQLInfo is a struct that contains info to connect to SQL
+type SQLInfo struct {
+	User     string
+	Password string
+	IP       string
+	Port     string
+}
+
 //Webpage is a function that returns an HTML file as a string to be sent to a user.
-func Webpage(channelID, serverID string, discord *discordgo.Session) (string, error) {
+func Webpage(channelID, serverID string, discord *discordgo.Session, sql SQLInfo) (string, error) {
 	var output string
 
 	file, err := ioutil.ReadFile("templates/template.html")
@@ -34,7 +43,7 @@ func Webpage(channelID, serverID string, discord *discordgo.Session) (string, er
 		return output, err
 	}
 
-	messages, err := pinsWithInfo(serverID, channelID, discord)
+	messages, err := pinsWithInfo(serverID, channelID, discord, sql)
 	if err != nil {
 		return output, err
 	}
@@ -84,10 +93,10 @@ func messageTemplater(messages []*discordgo.Message) (string, error) {
 	return output, nil
 }
 
-func pinsWithInfo(serverID, channelID string, discord *discordgo.Session) ([]*discordgo.Message, error) {
+func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQLInfo) ([]*discordgo.Message, error) {
 	var messages []*discordgo.Message
 
-	db := startSQL()
+	db := tools.StartSQL(sql.User, sql.Password, sql.IP, sql.Port)
 
 	rows, err := db.Query("SELECT messageid FROM pinnedmessages WHERE serverid=? AND channelid=?", serverID, channelID)
 	if err != nil {

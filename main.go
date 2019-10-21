@@ -1,11 +1,8 @@
 package main
 
 import (
-	"bytes"
 	"database/sql"
 	"fmt"
-	"html/template"
-	"io/ioutil"
 	"strconv"
 	"strings"
 	"sync"
@@ -15,6 +12,8 @@ import (
 	"github.com/gidoBOSSftw5731/log"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/configor"
+
+	"./tools"
 )
 
 var config = struct {
@@ -39,16 +38,6 @@ const (
 
 //var allChannelIDs = map[string]string{}
 var allChannelIDs []channelInfo
-
-//MsgStruct is a struct to hold all essential information for the template
-type MsgStruct struct {
-	Author  string
-	Content string
-	GID     string
-	CID     string
-	ID      string
-	Time    string
-}
 
 type channelInfo struct {
 	ChannelID string
@@ -254,109 +243,6 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 
 }
 
-func pinsWithInfo(serverID, channelID string, discord *discordgo.Session) ([]*discordgo.Message, error) {
-	var messages []*discordgo.Message
-
-	db := startSQL()
-
-	rows, err := db.Query("SELECT messageid FROM pinnedmessages WHERE serverid=? AND channelid=?", serverID, channelID)
-	if err != nil {
-		return nil, err
-	}
-
-	defer rows.Close()
-
-	for rows.Next() {
-		var messageid string
-		rows.Scan(&messageid)
-		message, err := discord.ChannelMessage(channelID, messageid)
-		if err != nil {
-			return nil, err
-		}
-		messages = append(messages, message)
-	}
-	if rows.Err() != nil {
-		return nil, err
-	}
-
-	return messages, nil
-}
-
-//Webpage is a function that returns an HTML file as a string to be sent to a user.
-func Webpage(channelID, serverID string, discord *discordgo.Session) (string, error) {
-	var output string
-
-	file, err := ioutil.ReadFile("templates/template.html")
-	if err != nil {
-		return "", err
-	}
-
-	t := template.New("pins")
-	t, err = t.Parse(string(file))
-	if err != nil {
-		return output, err
-	}
-
-	messages, err := pinsWithInfo(serverID, channelID, discord)
-	if err != nil {
-		return output, err
-	}
-
-	messagetmpl, err := messageTemplater(messages)
-	if err != nil {
-		return output, err
-	}
-
-	var buf bytes.Buffer
-
-	t.Execute(&buf, messagetmpl)
-	output = fmt.Sprintln(buf)
-
-	return output, nil
-}
-
-func messageTemplater(messages []*discordgo.Message) (string, error) {
-	var output string
-
-	for _, Message := range messages {
-		msg := msgToStruct(Message)
-
-		file, err := ioutil.ReadFile("templates/messagetmpl.html")
-		if err != nil {
-			return "", err
-		}
-
-		t := template.New("message")
-		t, err = t.Parse(string(file))
-		if err != nil {
-			return output, err
-		}
-
-		var buf bytes.Buffer
-
-		err = t.Execute(&buf, msg)
-		if err != nil {
-			return output, err
-		}
-
-		//log.Traceln(buf)
-		output += fmt.Sprintln(buf)
-		output += "\n"
-	}
-
-	return output, nil
-}
-
-func msgToStruct(message *discordgo.Message) MsgStruct {
-	return MsgStruct{
-		message.Author.Username,
-		message.Content,
-		message.GuildID,
-		message.ChannelID,
-		message.ID,
-		string(message.Timestamp)}
-}
-
 func checkAndPin(last100 []*discordgo.Message, db *sql.DB, serverID string) error {
 	for messageIndex := 0; messageIndex < len(last100); messageIndex++ {
 		msg := *last100[messageIndex]
@@ -395,14 +281,7 @@ func checkAndPin(last100 []*discordgo.Message, db *sql.DB, serverID string) erro
 }
 
 func startSQL() *sql.DB {
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/pinnerboibot",
-		config.DB.User, config.DB.Password, config.DB.IP, config.DB.Port))
-	if err != nil {
-		log.Error("Oh noez, could not connect to database")
-		log.Errorf("Error in SQL! %v", err)
-	}
-	log.Debug("Oi, mysql did thing")
-	//defer db.Close()
+	db := tools.StartSQL(config.DB.User, config.DB.Password, config.DB.IP, config.DB.Port)
 
 	return db
 }

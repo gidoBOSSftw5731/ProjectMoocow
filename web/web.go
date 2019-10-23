@@ -35,7 +35,7 @@ type MsgTmpl struct {
 }
 
 //Webpage is a function that returns an HTML file as a string to be sent to a user.
-func Webpage(channelID, serverID string, discord *discordgo.Session, sql SQLInfo, tmplPath string) (string, error) {
+func Webpage(serverID, channelID string, discord *discordgo.Session, sql SQLInfo, tmplPath string) (string, error) {
 	var output string
 
 	file, err := ioutil.ReadFile(path.Join(tmplPath, "template.html"))
@@ -43,29 +43,20 @@ func Webpage(channelID, serverID string, discord *discordgo.Session, sql SQLInfo
 		return "", err
 	}
 
-	t := template.New("pins")
-	t, err = t.Parse(string(file))
-	if err != nil {
-		return output, err
-	}
-
 	messages, err := pinsWithInfo(serverID, channelID, discord, sql)
 	if err != nil {
 		return output, err
 	}
+	//log.Traceln(messages)
 
 	messagetmpl, err := messageTemplater(messages, tmplPath)
 	if err != nil {
 		return output, err
 	}
 
-	Msgs := MsgTmpl{
-		Messages: messagetmpl}
+	output = fmt.Sprintf(string(file), messagetmpl)
 
-	var buf bytes.Buffer
-
-	t.Execute(&buf, Msgs)
-	output = buf.String()
+	//	log.Traceln(messagetmpl)
 
 	return output, nil
 }
@@ -94,8 +85,8 @@ func messageTemplater(messages []*discordgo.Message, tmplPath string) (string, e
 			return output, err
 		}
 
-		//log.Traceln(buf)
-		output += fmt.Sprintln(buf)
+		//fmt.Println(buf.String())
+		output += buf.String()
 		output += "\n"
 	}
 
@@ -107,6 +98,8 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 
 	db := tools.StartSQL(sql.User, sql.Password, sql.IP, sql.Port)
 
+	//log.Traceln(serverID, channelID)
+
 	rows, err := db.Query("SELECT messageid FROM pinnedmessages WHERE serverid=? AND channelid=?", serverID, channelID)
 	if err != nil {
 		return nil, err
@@ -117,6 +110,9 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 	for rows.Next() {
 		var messageid string
 		rows.Scan(&messageid)
+
+		//log.Traceln("foo")
+
 		message, err := discord.ChannelMessage(channelID, messageid)
 		if err != nil {
 			return nil, err

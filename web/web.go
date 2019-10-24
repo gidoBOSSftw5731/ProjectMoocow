@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"html/template"
 	"io/ioutil"
+	"path"
 
 	"../tools"
 	"github.com/bwmarrin/discordgo"
@@ -28,46 +29,46 @@ type SQLInfo struct {
 	Port     string
 }
 
+//MsgTmpl is a struct that can hold a templated set of messages
+type MsgTmpl struct {
+	Messages string
+}
+
 //Webpage is a function that returns an HTML file as a string to be sent to a user.
-func Webpage(channelID, serverID string, discord *discordgo.Session, sql SQLInfo) (string, error) {
+func Webpage(serverID, channelID string, discord *discordgo.Session, sql SQLInfo, tmplPath string) (string, error) {
 	var output string
 
-	file, err := ioutil.ReadFile("templates/template.html")
+	file, err := ioutil.ReadFile(path.Join(tmplPath, "template.html"))
 	if err != nil {
 		return "", err
-	}
-
-	t := template.New("pins")
-	t, err = t.Parse(string(file))
-	if err != nil {
-		return output, err
 	}
 
 	messages, err := pinsWithInfo(serverID, channelID, discord, sql)
 	if err != nil {
 		return output, err
 	}
+	//log.Traceln(messages)
 
-	messagetmpl, err := messageTemplater(messages)
+	messagetmpl, err := messageTemplater(messages, tmplPath, serverID)
 	if err != nil {
 		return output, err
 	}
 
-	var buf bytes.Buffer
+	output = fmt.Sprintf(string(file), messagetmpl)
 
-	t.Execute(&buf, messagetmpl)
-	output = fmt.Sprintln(buf)
+	//	log.Traceln(messagetmpl)
 
 	return output, nil
 }
 
-func messageTemplater(messages []*discordgo.Message) (string, error) {
+func messageTemplater(messages []*discordgo.Message, tmplPath, serverID string) (string, error) {
 	var output string
 
 	for _, Message := range messages {
+		Message.GuildID = serverID
 		msg := msgToStruct(Message)
 
-		file, err := ioutil.ReadFile("templates/messagetmpl.html")
+		file, err := ioutil.ReadFile(path.Join(tmplPath, "messagetmpl.html"))
 		if err != nil {
 			return "", err
 		}
@@ -85,8 +86,8 @@ func messageTemplater(messages []*discordgo.Message) (string, error) {
 			return output, err
 		}
 
-		//log.Traceln(buf)
-		output += fmt.Sprintln(buf)
+		//fmt.Println(buf.String())
+		output += buf.String()
 		output += "\n"
 	}
 
@@ -98,6 +99,8 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 
 	db := tools.StartSQL(sql.User, sql.Password, sql.IP, sql.Port)
 
+	//log.Traceln(serverID, channelID)
+
 	rows, err := db.Query("SELECT messageid FROM pinnedmessages WHERE serverid=? AND channelid=?", serverID, channelID)
 	if err != nil {
 		return nil, err
@@ -108,6 +111,9 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 	for rows.Next() {
 		var messageid string
 		rows.Scan(&messageid)
+
+		//log.Traceln("foo")
+
 		message, err := discord.ChannelMessage(channelID, messageid)
 		if err != nil {
 			return nil, err

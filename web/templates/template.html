@@ -1,14 +1,18 @@
 <html>
+    <head>
+            <link rel="stylesheet" type="text/css" href="pinbot/css" />
+            <link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet"> 
+    </head>
     <body>
         <div class="container">
-            <h2>Responsive Tables Using LI <small>Triggers on 767px</small></h2>
+            <h2>Discord Pins</h2>
             <ul class="responsive-table">
                 <li class="table-header">
                         <div class="col col-1">Author</div>
                         <div class="col col-2">Message Content</div>
                         <div class="col col-3">Time</div>
                 </li>
-                {{.}}
+                %v
             </ul>
         </div>
     </body>

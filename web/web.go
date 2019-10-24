@@ -49,7 +49,7 @@ func Webpage(serverID, channelID string, discord *discordgo.Session, sql SQLInfo
 	}
 	//log.Traceln(messages)
 
-	messagetmpl, err := messageTemplater(messages, tmplPath)
+	messagetmpl, err := messageTemplater(messages, tmplPath, serverID)
 	if err != nil {
 		return output, err
 	}
@@ -61,10 +61,11 @@ func Webpage(serverID, channelID string, discord *discordgo.Session, sql SQLInfo
 	return output, nil
 }
 
-func messageTemplater(messages []*discordgo.Message, tmplPath string) (string, error) {
+func messageTemplater(messages []*discordgo.Message, tmplPath, serverID string) (string, error) {
 	var output string
 
 	for _, Message := range messages {
+		Message.GuildID = serverID
 		msg := msgToStruct(Message)
 
 		file, err := ioutil.ReadFile(path.Join(tmplPath, "messagetmpl.html"))

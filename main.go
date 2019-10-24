@@ -240,7 +240,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		}
 
 	case "site", "website":
-		discord.ChannelMessageSend(message.ChannelID, fmt.Sprintf("https://imagen.click/pinbot/%v/%v", message.ChannelID, message.GuildID))
+		discord.ChannelMessageSend(message.ChannelID, fmt.Sprintf("https://imagen.click/pinbot/%v/%v", message.GuildID, message.ChannelID))
 
 	}
 

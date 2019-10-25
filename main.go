@@ -222,7 +222,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 		}
 
 	case "updatepin":
-		reactedMsg, err := discord.ChannelMessage(message.ChannelID, commandContents[2])
+		reactedMsg, err := k0discord.ChannelMessage(message.ChannelID, commandContents[2])
 		if err != nil {
 			return
 		}

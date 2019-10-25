@@ -2,6 +2,7 @@ package web
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/ioutil"
@@ -32,6 +33,12 @@ type SQLInfo struct {
 //MsgTmpl is a struct that can hold a templated set of messages
 type MsgTmpl struct {
 	Messages string
+}
+
+// An APIErrorMessage is an api error message returned from discord
+type APIErrorMessage struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
 }
 
 //Webpage is a function that returns an HTML file as a string to be sent to a user.
@@ -116,7 +123,15 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 
 		message, err := discord.ChannelMessage(channelID, messageid)
 		if err != nil {
-			return nil, err
+			var apierr APIErrorMessage
+
+			json.Unmarshal([]byte(fmt.Sprint(err)), &apierr)
+
+			if apierr.Code == 10008 || apierr.Message == "Unknown Message" {
+				message.Content = "Deleted!! " + messageid
+			} else {
+				return nil, err
+			}
 		}
 		messages = append(messages, message)
 	}

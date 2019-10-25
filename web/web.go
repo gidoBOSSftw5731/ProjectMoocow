@@ -72,7 +72,7 @@ func messageTemplater(messages []*discordgo.Message, tmplPath, serverID string) 
 	var output string
 
 	for _, Message := range messages {
-		Message.GuildID = serverID
+		//Message.GuildID = serverID
 		msg := msgToStruct(Message)
 
 		file, err := ioutil.ReadFile(path.Join(tmplPath, "messagetmpl.html"))
@@ -126,7 +126,7 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 
 			if strings.Contains(fmt.Sprintln(err),
 				"HTTP 404 Not Found, {\"message\": \"Unknown Message\", \"code\": 10008}") {
-				message.Content = "Deleted!! " + messageid
+				continue
 			} else {
 				return nil, err
 			}

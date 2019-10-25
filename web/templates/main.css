@@ -49,6 +49,7 @@ li {
 
 .col {
   color: #FFF;
+  display: flex;
 }
 
 a {

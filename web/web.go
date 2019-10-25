@@ -2,11 +2,11 @@ package web
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"html/template"
 	"io/ioutil"
 	"path"
+	"strings"
 
 	"../tools"
 	"github.com/bwmarrin/discordgo"
@@ -123,11 +123,9 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 
 		message, err := discord.ChannelMessage(channelID, messageid)
 		if err != nil {
-			var apierr APIErrorMessage
 
-			json.Unmarshal([]byte(fmt.Sprintln(err)), &apierr)
-
-			if apierr.Code == 10008 || apierr.Message == "Unknown Message" {
+			if strings.Contains(fmt.Sprintln(err),
+				"HTTP 404 Not Found, {\"message\": \"Unknown Message\", \"code\": 10008}") {
 				message.Content = "Deleted!! " + messageid
 			} else {
 				return nil, err

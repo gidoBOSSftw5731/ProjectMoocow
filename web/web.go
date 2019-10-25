@@ -125,7 +125,7 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 		if err != nil {
 			var apierr APIErrorMessage
 
-			json.Unmarshal([]byte(fmt.Sprint(err)), &apierr)
+			json.Unmarshal([]byte(fmt.Sprintln(err)), &apierr)
 
 			if apierr.Code == 10008 || apierr.Message == "Unknown Message" {
 				message.Content = "Deleted!! " + messageid

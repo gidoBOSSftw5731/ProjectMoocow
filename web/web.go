@@ -75,6 +75,8 @@ func messageTemplater(messages []*discordgo.Message, tmplPath, serverID string) 
 		//Message.GuildID = serverID
 		msg := msgToStruct(Message)
 
+		msg.GID = serverID
+
 		file, err := ioutil.ReadFile(path.Join(tmplPath, "messagetmpl.html"))
 		if err != nil {
 			return "", err

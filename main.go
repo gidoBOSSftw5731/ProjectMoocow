@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"math/rand"
 	"strconv"
 	"strings"
 	"sync"
@@ -44,6 +45,8 @@ type channelInfo struct {
 	GuildID   string
 }
 
+var helpMenu discordgo.MessageEmbed
+
 var (
 	botID string
 	//discordToken  = flag.String("token", "", "Discord bot secret")
@@ -53,6 +56,38 @@ var (
 
 func main() {
 	configor.Load(&config, "config.yml")
+
+	helpMenu = discordgo.MessageEmbed{
+		Title:  fmt.Sprintf("PinnerBoi Help"),
+		Author: &discordgo.MessageEmbedAuthor{},
+		Color:  rand.Intn(16777215),
+		Description: fmt.Sprintf("Prefix is %v \n All commands are case sensitive \n React to any message with %v to have it be pinned \n Bot made by %v",
+			config.Prefix, pinReaction, config.Author),
+		Fields: []*discordgo.MessageEmbedField{
+			&discordgo.MessageEmbedField{
+				Name:  "help",
+				Value: "Returns this message",
+			},
+			&discordgo.MessageEmbedField{
+				Name:  "site",
+				Value: "Returns this channel's site",
+			},
+			&discordgo.MessageEmbedField{
+				Name:  "chkpin",
+				Value: "Checks last 100 messages for new pins. The bot checks the last 25 messages every 5 seconds by default.",
+			},
+			&discordgo.MessageEmbedField{
+				Name:  "Where is the code?",
+				Value: "This bot's code is accessible at https://github.com/gidoBOSSftw5731/ProjectMoocow
+				My personal code can be found at https://imagen.click/git",
+			},
+		},
+
+		Thumbnail: &discordgo.MessageEmbedThumbnail{
+			URL: "https://imagen.click/i/9e1233.png",
+		},
+		Timestamp: time.Now().Format(time.RFC3339), // Discord wants ISO8601; RFC3339 is an extension of ISO8601 and should be completely compatible.
+	}
 
 	//println(config.Token)
 
@@ -189,26 +224,11 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	}
 
 	switch strings.Split(command, " ")[1] {
-	case "returnreacts":
-
-		reactedMsg, err := discord.ChannelMessage(message.ChannelID, commandContents[2])
-		if err != nil {
-			return
-		}
-
-		fmt.Println("Reactions:")
-
-		for _, reaction := range reactedMsg.Reactions {
-			fmt.Println(reaction.Emoji.Name)
-		}
-
-		//discord.ChannelMessageSend(message.ChannelID, message.Reactions[1])
-
 	// in-joke, not functional
 	case "alcegf":
 		discord.ChannelMessageSend(message.ChannelID, "HE NEEDS YOU <@613131233852915733>")
-	case "chkpin":
 
+	case "chkpin":
 		last100, err := discord.ChannelMessages(message.ChannelID, 100, message.ID, "", "")
 		if err != nil {
 			log.Errorln(err)
@@ -241,6 +261,18 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 
 	case "site", "website":
 		discord.ChannelMessageSend(message.ChannelID, fmt.Sprintf("https://imagen.click/pinbot/%v/%v", message.GuildID, message.ChannelID))
+
+	case "invite":
+		discord.ChannelMessageSend(message.ChannelID,
+			"https://discordapp.com/oauth2/authorize?client_id=631313783545004032&permissions=305216&redirect_uri=https%3A%2F%2Fdiscordapp.com%2Foauth2%2Fauthorize%3F%26client_id%3D181965297249550336%26scope%3Dbot&scope=bot")
+
+	case "help", "howto", "aahhhh", "sendhelp", "aid", "ayudame", "yonose", "info":
+		resp, err := discord.ChannelMessageSendEmbed(message.ChannelID, helpMenu)
+		if err != nil {
+			log.Debugln(resp, err)
+			discord.ChannelMessageSend(message.ChannelID, "Internal Error!")
+			return
+		}
 
 	}
 

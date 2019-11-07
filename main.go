@@ -78,8 +78,7 @@ func main() {
 			},
 			&discordgo.MessageEmbedField{
 				Name:  "Where is the code?",
-				Value: "This bot's code is accessible at https://github.com/gidoBOSSftw5731/ProjectMoocow
-				My personal code can be found at https://imagen.click/git",
+				Value: "This bot's code is accessible at https://github.com/gidoBOSSftw5731/ProjectMoocow \n My personal code can be found at https://imagen.click/git",
 			},
 		},
 

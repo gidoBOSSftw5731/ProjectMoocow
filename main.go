@@ -266,7 +266,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 			"https://discordapp.com/oauth2/authorize?client_id=631313783545004032&permissions=305216&redirect_uri=https%3A%2F%2Fdiscordapp.com%2Foauth2%2Fauthorize%3F%26client_id%3D181965297249550336%26scope%3Dbot&scope=bot")
 
 	case "help", "howto", "aahhhh", "sendhelp", "aid", "ayudame", "yonose", "info":
-		resp, err := discord.ChannelMessageSendEmbed(message.ChannelID, helpMenu)
+		resp, err := discord.ChannelMessageSendEmbed(message.ChannelID, &helpMenu)
 		if err != nil {
 			log.Debugln(resp, err)
 			discord.ChannelMessageSend(message.ChannelID, "Internal Error!")

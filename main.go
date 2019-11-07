@@ -77,6 +77,10 @@ func main() {
 				Value: "Checks last 100 messages for new pins. The bot checks the last 25 messages every 5 seconds by default.",
 			},
 			&discordgo.MessageEmbedField{
+				Name:  "invite",
+				Value: "Returns the invite URL",
+			},
+			&discordgo.MessageEmbedField{
 				Name:  "Where is the code?",
 				Value: "This bot's code is accessible at https://github.com/gidoBOSSftw5731/ProjectMoocow \n My personal code can be found at https://imagen.click/git",
 			},

@@ -104,11 +104,14 @@ func main() {
 	botID = user.ID
 	discord.AddHandler(commandHandler)
 	discord.AddHandler(func(discord *discordgo.Session, ready *discordgo.Ready) {
-		err = discord.UpdateStatus(2, "Pin all the things!")
+		servers := discord.State.Guilds
+
+		err = discord.UpdateStatus(2, fmt.Sprintf("Pin all the things! | %vhelp | Pinning in %v servers!",
+			config.Prefix, len(servers)))
 		if err != nil {
 			log.Errorln("Error attempting to set my status")
 		}
-		servers := discord.State.Guilds
+
 		log.Debugf("PinnerBoi has started on %d servers", len(servers))
 	})
 

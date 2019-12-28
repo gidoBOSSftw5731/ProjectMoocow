@@ -12,6 +12,10 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
+const (
+	pinReaction string = "📌"
+)
+
 //MsgStruct is a struct to hold all essential information for the template
 type MsgStruct struct {
 	Author  string
@@ -133,6 +137,12 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 				return nil, err
 			}
 		}
+
+		isValid := tools.CheckIfValid(message.Reactions, pinReaction)
+		if !isValid {
+			continue
+		}
+
 		messages = append(messages, message)
 	}
 	if rows.Err() != nil {

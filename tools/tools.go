@@ -46,6 +46,21 @@ func Configor(config *Config, path string) {
 	configor.Load(config, path)
 }
 
+//CheckIfValid Checks a message's reactions to see if it qualifies to be valid.
+func CheckIfValid(reaction []*discordgo.MessageReactions, pinReaction string) bool {
+	isValid := false
+	for reactionIndex := 0; reactionIndex < len(reaction); reactionIndex++ {
+		if reaction[reactionIndex].Emoji.Name != pinReaction {
+			continue
+		}
+
+		isValid = true
+		//At this point, we know the command was "pinned"
+
+	}
+	return isValid
+}
+
 //DiscordSession returns a discord session
 func DiscordSession(config Config) (*discordgo.Session, error) {
 	discord, err := discordgo.New("Bot " + config.Token)

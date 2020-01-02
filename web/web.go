@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"path"
 	"sync"
+	"time"
 
 	"../tools"
 	"github.com/bwmarrin/discordgo"
@@ -129,7 +130,6 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 	defer rows.Close()
 
 	var wg sync.WaitGroup
-	wg.Add(1)
 
 	for rows.Next() {
 		var message *discordgo.Message
@@ -160,6 +160,7 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 
 	}
 
+	time.Sleep(10 * time.Millisecond)
 	wg.Wait()
 
 	if rows.Err() != nil {

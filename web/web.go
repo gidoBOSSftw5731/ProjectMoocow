@@ -128,7 +128,8 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 	defer rows.Close()
 
 	for rows.Next() {
-		go func() {
+		var message *discordgo.Message
+		go func(message *discordgo.Message) *discordgo.Message {
 			var messageid string
 			rows.Scan(&messageid)
 
@@ -136,10 +137,15 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 
 			message, err := discord.ChannelMessage(channelID, messageid)
 			if err != nil {
-				return
+				return nil
 			}
 
-      
+			return message
+
+		}(message)
+
+		if message == nil {
+			continue
 		}
 
 		isValid := tools.CheckIfValid(message.Reactions, pinReaction)
@@ -149,7 +155,7 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 
 		messages = append(messages, message)
 
-  }
+	}
 	if rows.Err() != nil {
 		return nil, err
 	}

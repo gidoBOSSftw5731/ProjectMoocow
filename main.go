@@ -288,34 +288,34 @@ func checkAndPin(last100 []*discordgo.Message, db *sql.DB, serverID string) erro
 	for messageIndex := 0; messageIndex < len(last100); messageIndex++ {
 		msg := *last100[messageIndex]
 		reaction := msg.Reactions
-		for reactionIndex := 0; reactionIndex < len(reaction); reactionIndex++ {
-			if reaction[reactionIndex].Emoji.Name != pinReaction {
-				continue
-			}
-			//At this point, we know the command was "pinned"
+		
+		isValid := tools.CheckIfValid(reaction, pinReaction)
+		if !isValid {
+			continue
+		}
 
-			var tmpptr string //throwaway var
+		// at this point the message is known good
 
-			err := db.QueryRow("SELECT * FROM pinnedmessages WHERE channelid=? AND messageid=?",
-				msg.ChannelID, msg.ID).Scan(&tmpptr, &tmpptr, &tmpptr)
+		var tmpptr string //throwaway var
 
-			switch {
-			case err == sql.ErrNoRows:
-				log.Debug("New pin, adding..")
-				_, err := db.Exec("INSERT INTO pinnedmessages VALUES(?, ?, ?)",
-					serverID, msg.ChannelID, msg.ID)
-				if err != nil {
-					log.Error(err)
-					return err
-				}
-				log.Debug("Added pin info to table")
-			case err != nil:
+		err := db.QueryRow("SELECT * FROM pinnedmessages WHERE channelid=? AND messageid=?",
+			msg.ChannelID, msg.ID).Scan(&tmpptr, &tmpptr, &tmpptr)
+
+		switch {
+		case err == sql.ErrNoRows:
+			log.Debug("New pin, adding..")
+			_, err := db.Exec("INSERT INTO pinnedmessages VALUES(?, ?, ?)",
+				serverID, msg.ChannelID, msg.ID)
+			if err != nil {
 				log.Error(err)
 				return err
-			default:
-				continue
 			}
-
+			log.Debug("Added pin info to table")
+		case err != nil:
+			log.Error(err)
+			return err
+		default:
+			continue
 		}
 	}
 	return nil

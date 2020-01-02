@@ -2,15 +2,16 @@ package web
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"io/ioutil"
 	"path"
 	"sync"
-	"time"
 
 	"../tools"
 	"github.com/bwmarrin/discordgo"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 const (
@@ -115,10 +116,10 @@ func messageTemplater(messages []*discordgo.Message, tmplPath, serverID string) 
 	return output, nil
 }
 
-func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQLInfo) ([]*discordgo.Message, error) {
+func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sqlInfo SQLInfo) ([]*discordgo.Message, error) {
 	var messages []*discordgo.Message
 
-	db := tools.StartSQL(sql.User, sql.Password, sql.IP, sql.Port)
+	db := tools.StartSQL(sqlInfo.User, sqlInfo.Password, sqlInfo.IP, sqlInfo.Port)
 
 	//log.Traceln(serverID, channelID)
 
@@ -129,39 +130,56 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 
 	defer rows.Close()
 
+	//log.Traceln(rows)
+
 	var wg sync.WaitGroup
 
 	for rows.Next() {
 		var message *discordgo.Message
+
+		var messageid string
+		rows.Scan(&messageid)
+
+		//log.Traceln(messageid)
+
 		wg.Add(1)
 
-		go func(message *discordgo.Message, wg *sync.WaitGroup) {
-			var messageid string
-			rows.Scan(&messageid)
+		go func(message *discordgo.Message, wg *sync.WaitGroup, messages *[]*discordgo.Message, rows *sql.Rows) {
+
+			//log.Traceln(messageid)
 
 			//log.Traceln("foo")
 
 			message, err := discord.ChannelMessage(channelID, messageid)
 			if err != nil {
+				//log.Errorln(err)
 				wg.Done()
 				return
 			}
 
+			//log.Traceln(message)
+			//log.Traceln("foo")
+
 			isValid := tools.CheckIfValid(message.Reactions, pinReaction)
 			if !isValid {
+				wg.Done()
 				return
 			}
 
-			messages = append(messages, message)
+			*messages = append(*messages, message)
 
 			wg.Done()
+			return
 
-		}(message, &wg)
+		}(message, &wg, &messages, rows)
 
 	}
 
-	time.Sleep(10 * time.Millisecond)
 	wg.Wait()
+
+	//time.Sleep(20 * time.Millisecond)
+
+	//log.Traceln(messages)
 
 	if rows.Err() != nil {
 		return nil, err

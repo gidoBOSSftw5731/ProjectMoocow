@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"path"
+	"sync"
 
 	"../tools"
 	"github.com/bwmarrin/discordgo"
@@ -127,9 +128,13 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 
 	defer rows.Close()
 
+	var wg sync.WaitGroup
+
 	for rows.Next() {
 		var message *discordgo.Message
-		go func(message *discordgo.Message) *discordgo.Message {
+		wg.Add(1)
+
+		go func(message *discordgo.Message, wg *sync.WaitGroup) {
 			var messageid string
 			rows.Scan(&messageid)
 
@@ -137,25 +142,25 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 
 			message, err := discord.ChannelMessage(channelID, messageid)
 			if err != nil {
-				return nil
+				wg.Done()
+				return
 			}
 
-			return message
+			isValid := tools.CheckIfValid(message.Reactions, pinReaction)
+			if !isValid {
+				return
+			}
 
-		}(message)
+			messages = append(messages, message)
 
-		if message == nil {
-			continue
-		}
+			wg.Done()
 
-		isValid := tools.CheckIfValid(message.Reactions, pinReaction)
-		if !isValid {
-			continue
-		}
-
-		messages = append(messages, message)
+		}(message, &wg)
 
 	}
+
+	wg.Wait()
+
 	if rows.Err() != nil {
 		return nil, err
 	}

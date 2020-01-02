@@ -200,10 +200,15 @@ func autoChecker(s *discordgo.Session) {
 
 func check(s *discordgo.Session, channel *channelInfo, db *sql.DB, wg *sync.WaitGroup) {
 	last25, err := s.ChannelMessages(channel.ChannelID, 25, "", "", "")
+
 	if err != nil {
+		if strings.Contains(err.Error(), "HTTP 403 Forbidden, {\"message\": \"Missing Access\", \"code\": 50001}") {
+			return
+		}
 		log.Errorln(err)
 		return
 	}
+
 	checkAndPin(last25, db, channel.GuildID)
 	//wg.Done()
 }
@@ -288,7 +293,7 @@ func checkAndPin(last100 []*discordgo.Message, db *sql.DB, serverID string) erro
 	for messageIndex := 0; messageIndex < len(last100); messageIndex++ {
 		msg := *last100[messageIndex]
 		reaction := msg.Reactions
-		
+
 		isValid := tools.CheckIfValid(reaction, pinReaction)
 		if !isValid {
 			continue

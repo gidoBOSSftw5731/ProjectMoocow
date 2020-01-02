@@ -76,6 +76,13 @@ func messageTemplater(messages []*discordgo.Message, tmplPath, serverID string) 
 
 	for _, Message := range messages {
 		//Message.GuildID = serverID
+
+		if len(Message.Attachments) != 0 {
+			for _, attachment := range Message.Attachments {
+				Message.Content = fmt.Sprintf("%v \n Included Attachment: %v", Message.Content, attachment.ProxyURL)
+			}
+		}
+
 		msg := msgToStruct(Message)
 
 		msg.GID = serverID

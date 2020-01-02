@@ -6,7 +6,6 @@ import (
 	"html/template"
 	"io/ioutil"
 	"path"
-	"strings"
 
 	"../tools"
 	"github.com/bwmarrin/discordgo"
@@ -122,20 +121,18 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 	defer rows.Close()
 
 	for rows.Next() {
-		var messageid string
-		rows.Scan(&messageid)
+		go func() {
+			var messageid string
+			rows.Scan(&messageid)
 
-		//log.Traceln("foo")
+			//log.Traceln("foo")
 
-		message, err := discord.ChannelMessage(channelID, messageid)
-		if err != nil {
-
-			if strings.Contains(fmt.Sprintln(err),
-				"HTTP 404 Not Found, {\"message\": \"Unknown Message\", \"code\": 10008}") {
-				continue
-			} else {
-				return nil, err
+			message, err := discord.ChannelMessage(channelID, messageid)
+			if err != nil {
+				return
 			}
+
+      
 		}
 
 		isValid := tools.CheckIfValid(message.Reactions, pinReaction)
@@ -144,7 +141,8 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 		}
 
 		messages = append(messages, message)
-	}
+
+  }
 	if rows.Err() != nil {
 		return nil, err
 	}

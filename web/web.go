@@ -129,6 +129,7 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sql SQ
 	defer rows.Close()
 
 	var wg sync.WaitGroup
+	wg.Add(1)
 
 	for rows.Next() {
 		var message *discordgo.Message

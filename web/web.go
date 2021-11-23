@@ -9,8 +9,8 @@ import (
 	"path"
 	"sync"
 
-	"../tools"
 	"github.com/bwmarrin/discordgo"
+	"github.com/gidoBOSSftw5731/ProjectMoocow/tools"
 	_ "github.com/go-sql-driver/mysql"
 )
 

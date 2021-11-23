@@ -42,14 +42,17 @@ tr {
 
 .col-1 {
   flex-basis: 35%;
+  width: 35%;
 }
 
 .col-2 {
   flex-basis: 40%;
+  width: 40%;
 }
 
 .col-3 {
   flex-basis: 25%;
+  width: 25%;
 }
 
 .col {

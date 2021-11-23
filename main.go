@@ -14,7 +14,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jinzhu/configor"
 
-	"./tools"
+	"github.com/gidoBOSSftw5731/ProjectMoocow/tools"
 )
 
 var config = struct {

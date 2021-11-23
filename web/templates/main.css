@@ -61,6 +61,7 @@ tr {
   color: #FFF;
   display: table-cell;
   word-break: break-word;
+  padding: 3em;
 }
 
 a {

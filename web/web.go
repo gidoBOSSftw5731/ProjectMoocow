@@ -7,10 +7,12 @@ import (
 	"html/template"
 	"io/ioutil"
 	"path"
+	"sort"
 	"sync"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/gidoBOSSftw5731/ProjectMoocow/tools"
+	"github.com/gidoBOSSftw5731/log"
 	_ "github.com/go-sql-driver/mysql"
 )
 
@@ -184,6 +186,19 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sqlInf
 	if rows.Err() != nil {
 		return nil, err
 	}
+
+	// sort structs by date so the format is consistent
+	sort.Slice(messages, func(i, j int) bool {
+		t, err := messages[i].Timestamp.Parse()
+		if err != nil {
+			log.Errorln("Error parsing dgo timestamp", err)
+		}
+		ts, err := messages[j].Timestamp.Parse()
+		if err != nil {
+			log.Errorln("Error parsing dgo timestamp", err)
+		}
+		return t.Before(ts)
+	})
 
 	return messages, nil
 }

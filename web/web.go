@@ -7,6 +7,7 @@ import (
 	"html/template"
 	"io/ioutil"
 	"path"
+	"reflect"
 	"sort"
 	"sync"
 
@@ -200,6 +201,8 @@ func pinsWithInfo(serverID, channelID string, discord *discordgo.Session, sqlInf
 		return t.Before(ts)
 	})
 
+	reverseAny(messages)
+
 	return messages, nil
 }
 
@@ -211,4 +214,13 @@ func msgToStruct(message *discordgo.Message) MsgStruct {
 		message.ChannelID,
 		message.ID,
 		string(message.Timestamp)}
+}
+
+// credit https://stackoverflow.com/a/28058324
+func reverseAny(s interface{}) {
+	n := reflect.ValueOf(s).Len()
+	swap := reflect.Swapper(s)
+	for i, j := 0, n-1; i < j; i, j = i+1, j-1 {
+		swap(i, j)
+	}
 }

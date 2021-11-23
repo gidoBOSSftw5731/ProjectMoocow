@@ -1,7 +1,8 @@
 body {
     font-family: 'Roboto', sans-serif;
     background-color: #2C2F33;
-  }
+}
+
 .container {
   max-width: 1000px;
   margin-left: auto;
@@ -17,8 +18,6 @@ h2 {
   color: #7289DA;
 }
 
-
-
 li {
   border-radius: 3px;
   padding: 25px 30px;
@@ -27,6 +26,7 @@ li {
   column-count: 3;
   list-style-type: none;
 }
+
 .table-header {
   background-color: #99aab5;
   font-size: 14px;
@@ -36,13 +36,18 @@ li {
 .table-row {
   background-color: #23272a;
   box-shadow: 0px 0px 9px 0px rgba(0,0,0,0.1);
+  min-width: 0;
+  overflow: scroll;
 }
+
 .col-1 {
   flex-basis: 35%;
 }
+
 .col-2 {
   flex-basis: 40%;
 }
+
 .col-3 {
   flex-basis: 25%;
 }
@@ -54,4 +59,9 @@ li {
 
 a {
   text-decoration:none;
+}
+
+.col:before, .col:after {
+  flex-basis: 0;
+  order: 1;
 }

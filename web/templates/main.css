@@ -60,6 +60,7 @@ tr {
 .col {
   color: #FFF;
   display: table-cell;
+  word-break: break-word;
 }
 
 a {

@@ -27,13 +27,14 @@ tr {
   list-style-type: none;
 }
 
-.table-header {
+th {
   background-color: #99aab5;
   font-size: 14px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
-.table-row {
+
+tr {
   background-color: #23272a;
   box-shadow: 0px 0px 9px 0px rgba(0,0,0,0.1);
   min-width: 0;
@@ -57,14 +58,10 @@ tr {
 
 .col {
   color: #FFF;
-  display: flex;
+  display: table-cell;
 }
 
 a {
   text-decoration:none;
 }
 
-.col:before, .col:after {
-  flex-basis: 0;
-  order: 1;
-}

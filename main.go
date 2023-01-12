@@ -4,18 +4,18 @@ import (
 	"database/sql"
 	"fmt"
 	"math/rand"
+	"net/http"
+	"net/http/pprof"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-	"net/http"
-	"net/http/pprof"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/gidoBOSSftw5731/log"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gorilla/mux"
 	"github.com/jinzhu/configor"
-"github.com/gorilla/mux"
 
 	"github.com/gidoBOSSftw5731/ProjectMoocow/tools"
 )
@@ -40,7 +40,7 @@ const (
 	precision   int    = 10
 )
 
-//var allChannelIDs = map[string]string{}
+// var allChannelIDs = map[string]string{}
 var allChannelIDs []channelInfo
 
 type channelInfo struct {
@@ -60,23 +60,21 @@ var (
 func main() {
 	configor.Load(&config, "config.yml")
 
+	// Create a new router
+	router := mux.NewRouter()
 
-// Create a new router
-router := mux.NewRouter()
+	// Register pprof handlers
+	router.HandleFunc("/debug/pprof/", pprof.Index)
+	router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
+	router.HandleFunc("/debug/pprof/profile", pprof.Profile)
+	router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
 
-// Register pprof handlers
-router.HandleFunc("/debug/pprof/", pprof.Index)
-router.HandleFunc("/debug/pprof/cmdline", pprof.Cmdline)
-router.HandleFunc("/debug/pprof/profile", pprof.Profile)
-router.HandleFunc("/debug/pprof/symbol", pprof.Symbol)
-
-router.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
-router.Handle("/debug/pprof/heap", pprof.Handler("heap"))
-router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
-router.Handle("/debug/pprof/block", pprof.Handler("block"))
+	router.Handle("/debug/pprof/goroutine", pprof.Handler("goroutine"))
+	router.Handle("/debug/pprof/heap", pprof.Handler("heap"))
+	router.Handle("/debug/pprof/threadcreate", pprof.Handler("threadcreate"))
+	router.Handle("/debug/pprof/block", pprof.Handler("block"))
 
 	go http.ListenAndServe("192.110.255.55:56799", router)
-
 
 	helpMenu = discordgo.MessageEmbed{
 		Title:  fmt.Sprintf("PinnerBoi Help"),

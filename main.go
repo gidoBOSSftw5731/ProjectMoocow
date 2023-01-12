@@ -156,7 +156,15 @@ func main() {
 			log.Errorln(err)
 			return
 		}
-		addMsgToDB(msg)
+
+		// get channel object
+		channel, err := discord.Channel(reaction.ChannelID)
+		if err != nil {
+			log.Errorln(err)
+			return
+		}
+
+		addMsgToDB(msg, channel.GuildID)
 		log.Debugln("Added message to DB via Gateway")
 
 	})
@@ -338,7 +346,7 @@ func checkAndPin(last100 []*discordgo.Message, serverID string) error {
 
 		// at this point the message is known good
 
-		err := addMsgToDB(&msg)
+		err := addMsgToDB(&msg, serverID)
 		if err != nil {
 			log.Errorln(err)
 			return err
@@ -349,7 +357,7 @@ func checkAndPin(last100 []*discordgo.Message, serverID string) error {
 
 // addMsgToDB adds a message to the SQL Database and checks for error,
 // does NOT verify if the reaction is actually there.
-func addMsgToDB(msg *discordgo.Message) error {
+func addMsgToDB(msg *discordgo.Message, serverID string) error {
 	var tmpptr string //throwaway var
 
 	err := db.QueryRow("SELECT * FROM pinnedmessages WHERE channelid=? AND messageid=?",
@@ -358,8 +366,9 @@ func addMsgToDB(msg *discordgo.Message) error {
 	switch {
 	case err == sql.ErrNoRows:
 		log.Debug("New pin, adding..")
+
 		_, err := db.Exec("INSERT INTO pinnedmessages VALUES(?, ?, ?)",
-			msg.GuildID, msg.ChannelID, msg.ID)
+			serverID, msg.ChannelID, msg.ID)
 		if err != nil {
 			log.Error(err)
 			return err

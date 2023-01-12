@@ -55,6 +55,7 @@ var (
 	//discordToken  = flag.String("token", "", "Discord bot secret")
 	//commandPrefix = "📌 "
 	//author        = ""
+	db *sql.DB
 )
 
 func main() {
@@ -77,29 +78,29 @@ func main() {
 	go http.ListenAndServe("192.110.255.55:56799", router)
 
 	helpMenu = discordgo.MessageEmbed{
-		Title:  fmt.Sprintf("PinnerBoi Help"),
+		Title:  "PinnerBoi Help",
 		Author: &discordgo.MessageEmbedAuthor{},
 		Color:  rand.Intn(16777215),
 		Description: fmt.Sprintf("Prefix is %v \n All commands are case sensitive \n React to any message with %v to have it be pinned \n Bot made by %v",
 			config.Prefix, pinReaction, config.Author),
 		Fields: []*discordgo.MessageEmbedField{
-			&discordgo.MessageEmbedField{
+			{
 				Name:  "help",
 				Value: "Returns this message",
 			},
-			&discordgo.MessageEmbedField{
+			{
 				Name:  "site",
 				Value: "Returns this channel's site",
 			},
-			&discordgo.MessageEmbedField{
+			{
 				Name:  "chkpin",
 				Value: "Checks last 100 messages for new pins. The bot checks the last 25 messages every 5 seconds by default.",
 			},
-			&discordgo.MessageEmbedField{
+			{
 				Name:  "invite",
 				Value: "Returns the invite URL",
 			},
-			&discordgo.MessageEmbedField{
+			{
 				Name:  "Where is the code?",
 				Value: "This bot's code is accessible at https://github.com/gidoBOSSftw5731/ProjectMoocow \n My personal code can be found at https://imagen.click/git",
 			},
@@ -134,9 +135,31 @@ func main() {
 		log.Debugf("PinnerBoi has started on %d servers", len(servers))
 	})
 
+	db = startSQL()
+
 	err = discord.Open()
 	errCheck("Error opening connection to Discord", err)
 	defer discord.Close()
+
+	discord.AddHandler(func(discord *discordgo.Session, reaction *discordgo.MessageReactionAdd) {
+		if reaction.UserID == botID {
+			return
+		}
+
+		if reaction.Emoji.Name != pinReaction {
+			return
+		}
+
+		// get message by ID
+		msg, err := discord.ChannelMessage(reaction.ChannelID, reaction.MessageID)
+		if err != nil {
+			log.Errorln(err)
+			return
+		}
+		addMsgToDB(msg)
+		log.Debugln("Added message to DB via Gateway")
+
+	})
 
 	go collectAllChannelIDs(discord)
 
@@ -169,10 +192,13 @@ func collectAllChannelIDs(s *discordgo.Session) {
 	}
 
 	//log.Tracef("All channel IDs: \n%v", allChannelIDs)
-	autoChecker(s)
+	// don't use autochecker anymore, replace with intents and gw
+	//autoChecker(s)
 
 }
 
+// autoChecker checks for recent messages frequently.
+// This is DEPRECATED due to the Gateway handler.
 func autoChecker(s *discordgo.Session) {
 
 	iterations := make(map[channelInfo]int)
@@ -186,8 +212,6 @@ func autoChecker(s *discordgo.Session) {
 	}
 
 	//log.Traceln(iterations)
-
-	db := startSQL()
 
 	for {
 		now := time.Now().Unix() % int64(precision)
@@ -206,7 +230,7 @@ func autoChecker(s *discordgo.Session) {
 			for _, channel := range current {
 
 				wg.Add(1)
-				check(s, &channel, db, &wg)
+				check(s, &channel, &wg)
 			}
 		}()
 
@@ -217,7 +241,7 @@ func autoChecker(s *discordgo.Session) {
 
 }
 
-func check(s *discordgo.Session, channel *channelInfo, db *sql.DB, wg *sync.WaitGroup) {
+func check(s *discordgo.Session, channel *channelInfo, wg *sync.WaitGroup) {
 	last25, err := s.ChannelMessages(channel.ChannelID, 25, "", "", "")
 
 	if err != nil {
@@ -228,7 +252,7 @@ func check(s *discordgo.Session, channel *channelInfo, db *sql.DB, wg *sync.Wait
 		return
 	}
 
-	checkAndPin(last25, db, channel.GuildID)
+	checkAndPin(last25, channel.GuildID)
 	//wg.Done()
 }
 
@@ -246,18 +270,12 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 	command := strings.Split(message.Content, config.Prefix)[1]
 	commandContents := strings.Split(message.Content, " ") // 0 = !, 1 = command, 2 = first arg, etc
 
-	db := startSQL()
-
 	if len(command) < 2 {
 		log.Errorln("No command sent")
 		return
 	}
 
 	switch strings.Split(command, " ")[1] {
-	// in-joke, not functional
-	case "alcegf":
-		discord.ChannelMessageSend(message.ChannelID, "HE NEEDS YOU <@613131233852915733>")
-
 	case "chkpin":
 		last100, err := discord.ChannelMessages(message.ChannelID, 100, message.ID, "", "")
 		if err != nil {
@@ -265,7 +283,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 			return
 		}
 
-		err = checkAndPin(last100, db, message.GuildID)
+		err = checkAndPin(last100, message.GuildID)
 		if err != nil {
 			log.Errorln(err)
 			return
@@ -283,7 +301,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 			return
 		}
 
-		err = checkAndPin(last100, db, message.GuildID)
+		err = checkAndPin(last100, message.GuildID)
 		if err != nil {
 			log.Errorln(err)
 			return
@@ -308,7 +326,7 @@ func commandHandler(discord *discordgo.Session, message *discordgo.MessageCreate
 
 }
 
-func checkAndPin(last100 []*discordgo.Message, db *sql.DB, serverID string) error {
+func checkAndPin(last100 []*discordgo.Message, serverID string) error {
 	for messageIndex := 0; messageIndex < len(last100); messageIndex++ {
 		msg := *last100[messageIndex]
 		reaction := msg.Reactions
@@ -320,27 +338,38 @@ func checkAndPin(last100 []*discordgo.Message, db *sql.DB, serverID string) erro
 
 		// at this point the message is known good
 
-		var tmpptr string //throwaway var
+		err := addMsgToDB(&msg)
+		if err != nil {
+			log.Errorln(err)
+			return err
+		}
+	}
+	return nil
+}
 
-		err := db.QueryRow("SELECT * FROM pinnedmessages WHERE channelid=? AND messageid=?",
-			msg.ChannelID, msg.ID).Scan(&tmpptr, &tmpptr, &tmpptr)
+// addMsgToDB adds a message to the SQL Database and checks for error,
+// does NOT verify if the reaction is actually there.
+func addMsgToDB(msg *discordgo.Message) error {
+	var tmpptr string //throwaway var
 
-		switch {
-		case err == sql.ErrNoRows:
-			log.Debug("New pin, adding..")
-			_, err := db.Exec("INSERT INTO pinnedmessages VALUES(?, ?, ?)",
-				serverID, msg.ChannelID, msg.ID)
-			if err != nil {
-				log.Error(err)
-				return err
-			}
-			log.Debug("Added pin info to table")
-		case err != nil:
+	err := db.QueryRow("SELECT * FROM pinnedmessages WHERE channelid=? AND messageid=?",
+		msg.ChannelID, msg.ID).Scan(&tmpptr, &tmpptr, &tmpptr)
+
+	switch {
+	case err == sql.ErrNoRows:
+		log.Debug("New pin, adding..")
+		_, err := db.Exec("INSERT INTO pinnedmessages VALUES(?, ?, ?)",
+			msg.GuildID, msg.ChannelID, msg.ID)
+		if err != nil {
 			log.Error(err)
 			return err
-		default:
-			continue
 		}
+		log.Debug("Added pin info to table")
+	case err != nil:
+		log.Error(err)
+		return err
+	default:
+		// Pin already exists, do nothing
 	}
 	return nil
 }
